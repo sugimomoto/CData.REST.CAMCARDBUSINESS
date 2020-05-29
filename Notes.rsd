@@ -1,0 +1,70 @@
+<api:script xmlns:api="http://apiscript.com/ns?v1" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <!-- See Column Definitions to specify column behavior and use XPaths to extract column values from JSON. -->
+  <api:info title="Notes" desc="Generated schema file." xmlns:other="http://apiscript.com/ns?v1">
+    <!-- You can modify the name, type, and column size here. -->
+    <attr name="FileName"    xs:type="string"     />
+
+    <attr name="CreatorEmail" xs:type="string" readonly="false"              other:xPath="/json/creator_email" />
+    <attr name="CreatorName"  xs:type="string" readonly="false"              other:xPath="/json/creator_name"  />
+    <attr name="Position"      xs:type="string" readonly="false"              other:xPath="/json/position"      />
+    <attr name="Text"          xs:type="string" readonly="false"              other:xPath="/json/text"          />
+    <attr name="UploadTime"   xs:type="string" readonly="false"              other:xPath="/json/upload_time"   />
+
+    <input name="Creator" xs:type="string"/>
+    <input name="TagId"   xs:type="string"/>
+    <input name="Flag"    xs:type="string"/>
+    <input name="From"    xs:type="string"/>
+    <input name="To"      xs:type="string"/>
+  </api:info>
+
+  <!-- The GET method corresponds to SELECT. Here you can override the default processing of the SELECT statement. The results of processing are pushed to the schema's output. See SELECT Execution for more information. -->
+  <api:script method="GET">
+    <api:set attr="QueryParameter" value=""/>
+
+    <api:exists attr="Creator">
+      <api:set attr="QueryParameter" value="[QueryParameter]&creator=[Creator]"/>
+    </api:exists>
+    <api:exists attr="TagId">
+      <api:set attr="QueryParameter" value="[QueryParameter]&tag_id=[TagId]"/>
+    </api:exists>
+    <api:exists attr="Flag">
+      <api:set attr="QueryParameter" value="[QueryParameter]&flag=[Flag]"/>
+    </api:exists>
+    <api:exists attr="From">
+      <api:set attr="QueryParameter" value="[QueryParameter]&from=[From]"/>
+    </api:exists>
+    <api:exists attr="To">
+      <api:set attr="QueryParameter" value="[QueryParameter]&to=[To]"/>
+    </api:exists>
+
+    <api:set attr="CardListRequest.URI" value="[_connection.APIUrl]/get_card_list?app_secret=[_connection.APPSecret][QueryParameter]" />
+    <api:set attr="CardListRequest.ElementMapPath#1" value="/file_list" />
+    <api:set attr="CardListRequest.ElementMapName#1" value="FileList" />
+    <api:set attr="CardListRequest.RepeatElement" value="/"/>
+    <api:set attr="CardListRequest.EnablePaging"  value="true" />
+    <api:set attr="CardListRequest.ignorecontenttype"  value="true" />
+
+    <api:call op="jsonproviderGet" in="CardListRequest" out="CardListResponse">
+
+      <api:enum list="[CardListResponse.FileList | replace('\[','') | replace('\]','')]" separator=",">
+
+      <api:set attr="CardNoteRequest.DataModel" value="DOCUMENT" />
+      <api:set attr="_input.File" value="[_value | substring(1,'28')]" />
+      <api:set attr="CardNoteRequest.URI" value="[_connection.APIUrl]/get_card_note?app_secret=[_connection.APPSecret]&file_name=[_input.File]" />
+      <api:set attr="CardNoteRequest.JSONPath" value="$." />
+      <api:set attr="CardNoteRequest.ignorecontenttype"  value="true" />  
+      <api:set attr="CardNoteRequest.EnablePaging"  value="true" />
+
+      <api:call op="jsonproviderGet" in="CardNoteRequest" out="CardNoteResponse">
+        <api:set attr="CardNoteResponse.FileName" value="[_input.File]"/>
+        <api:push/>
+      </api:call>
+
+      </api:enum>
+
+    </api:call>
+  </api:script>
+
+
+</api:script>

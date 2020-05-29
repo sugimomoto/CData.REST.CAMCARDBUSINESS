@@ -1,0 +1,271 @@
+<api:script xmlns:api="http://apiscript.com/ns?v1" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <!-- See Column Definitions to specify column behavior and use XPaths to extract column values from JSON. -->
+  <api:info title="BusinessCards" desc="Generated schema file." xmlns:other="http://apiscript.com/ns?v1">
+    <!-- You can modify the name, type, and column size here. -->
+    <attr name="FileName"    xs:type="string"     />
+    <attr name="Version"    xs:type="string"     />
+    <attr name="URL"    xs:type="string"     />
+    <attr name="FullName"    xs:type="string"     />
+    <attr name="TelWork"    xs:type="string"     />
+    <attr name="TelCell"    xs:type="string"     />
+    <attr name="TelFax"    xs:type="string"     />
+    <attr name="BirthDay"    xs:type="date"     />
+    <attr name="FirstName"    xs:type="string"     />
+    <attr name="LastName"    xs:type="string"     />
+    <attr name="MiddleName"    xs:type="string"     />
+    <attr name="TitleBefore"    xs:type="string"     />
+    <attr name="TitleAfter"    xs:type="string"     />
+    <attr name="NickName"    xs:type="string"     />
+    <attr name="ISIM"    xs:type="string"     />
+    <attr name="Author"    xs:type="string"     />
+    <attr name="EmailWork"    xs:type="string"     />
+    <attr name="ExchangeDate"    xs:type="date"     />
+    <attr name="AddressContry"    xs:type="string"     />
+    <attr name="AddressZIP"    xs:type="string"     />
+    <attr name="AddressState"    xs:type="string"     />
+    <attr name="AddressCity"    xs:type="string"     />
+    <attr name="AddressLine1"    xs:type="string"     />
+    <attr name="AddressLine2"    xs:type="string"     />
+    <attr name="AddressLine3"    xs:type="string"     />
+    <attr name="Note"    xs:type="string"     />
+    <attr name="ComapnyName"    xs:type="string"     />
+    <attr name="Department"    xs:type="string"     />
+    <attr name="Role"    xs:type="string"     />
+    <attr name="SNS"    xs:type="string"     />
+    <attr name="CreateTime"   xs:type="string" readonly="false"              other:xPath="/json/create_time"   />
+    <attr name="CreatorEmail" xs:type="string" readonly="false"              other:xPath="/json/creator_email" />
+    <attr name="CreatorName"  xs:type="string" readonly="false"              other:xPath="/json/creator_name"  />
+    <attr name="UploadTime"   xs:type="string" readonly="false"              other:xPath="/json/upload_time"   />
+    <attr name="VcardInfo"    xs:type="string" readonly="false"              other:xPath="/json/vcard_info"    />
+
+    <input name="Creator" xs:type="string"/>
+    <input name="TagId"   xs:type="string"/>
+    <input name="Flag"    xs:type="string"/>
+    <input name="From"    xs:type="string"/>
+    <input name="To"      xs:type="string"/>
+
+  </api:info>
+
+  <!-- The GET method corresponds to SELECT. Here you can override the default processing of the SELECT statement. The results of processing are pushed to the schema's output. See SELECT Execution for more information. -->
+  <api:script method="GET">
+
+    <api:set attr="QueryParameter" value=""/>
+
+    <api:exists attr="Creator">
+      <api:set attr="QueryParameter" value="[QueryParameter]&creator=[Creator]"/>
+    </api:exists>
+    <api:exists attr="TagId">
+      <api:set attr="QueryParameter" value="[QueryParameter]&tag_id=[TagId]"/>
+    </api:exists>
+    <api:exists attr="Flag">
+      <api:set attr="QueryParameter" value="[QueryParameter]&flag=[Flag]"/>
+    </api:exists>
+    <api:exists attr="From">
+      <api:set attr="QueryParameter" value="[QueryParameter]&from=[From]"/>
+    </api:exists>
+    <api:exists attr="To">
+      <api:set attr="QueryParameter" value="[QueryParameter]&to=[To]"/>
+    </api:exists>
+
+    <api:set attr="CardListRequest.URI" value="[_connection.APIUrl]/get_card_list?app_secret=[_connection.APPSecret][QueryParameter]" />
+    <api:set attr="CardListRequest.ElementMapPath#1" value="/file_list" />
+    <api:set attr="CardListRequest.ElementMapName#1" value="FileList" />
+    <api:set attr="CardListRequest.RepeatElement" value="/"/>
+    <api:set attr="CardListRequest.EnablePaging"  value="true" />
+    <api:set attr="CardListRequest.ignorecontenttype"  value="true" />
+
+    <api:call op="jsonproviderGet" in="CardListRequest" out="CardListResponse">
+
+      <api:enum list="[CardListResponse.FileList | replace('\[','') | replace('\]','')]" separator=",">
+
+      <api:set attr="CardInfoRequest.DataModel" value="DOCUMENT" />
+      <api:set attr="_input.File" value="[_value | substring(1,'28')]" />
+      <api:set attr="CardInfoRequest.URI" value="[_connection.APIUrl]/get_card_info?app_secret=[_connection.APPSecret]&file_name=[_input.File]" />
+      <api:set attr="CardInfoRequest.JSONPath" value="$." />
+      <api:set attr="CardInfoRequest.ignorecontenttype"  value="true" />  
+      <api:set attr="CardInfoRequest.EnablePaging"  value="true" />
+
+      <api:call op="jsonproviderGet" in="CardInfoRequest" out="CardInfoResponse">
+      
+        <api:set attr="CardInfoResponse.FileName" value="[_input.File]"/>
+
+        <!-- vCard 文字列から一つ一つプロパティを取り出す。 -->
+        <api:enum list="[CardInfoResponse.VcardInfo]" separator="\r\n">
+
+          <api:if exp="[_value | contains('VERSION')] == true">
+            <api:else>
+              <api:set attr="CardInfoResponse.Version" value="[CardInfoResponse.Version | def()]"/>
+            </api:else>          
+            <api:set attr="CardInfoResponse.Version" value="[_value | split(':',2)]"/>
+            <api:continue/>
+          </api:if>
+
+          <api:if exp="[_value | contains('URL;')]">
+            <api:else>
+              <api:set attr="CardInfoResponse.URL" value="[CardInfoResponse.URL | def()]"/>
+            </api:else>          
+            <api:set attr="CardInfoResponse.URL" value="[_value | split(':',2)]:[_value | split(':',3)]"/>
+            <api:continue/>
+          </api:if>
+
+          <api:if exp="[_value | contains('FN;')]">
+            <api:else>
+              <api:set attr="CardInfoResponse.FullName" value="[CardInfoResponse.FullName | def()]"/>
+            </api:else>          
+            <api:set attr="CardInfoResponse.FullName" value="[_value | split(':',2)]"/>
+            <api:continue/>
+          </api:if>
+
+
+          <api:if exp="[_value | contains('X-IS-IM;')]">
+            <api:else>
+              <api:set attr="CardInfoResponse.ISIM" value="[CardInfoResponse.ISIM | def()]"/>
+            </api:else>          
+            <api:set attr="CardInfoResponse.ISIM" value="[_value | split(':',2)]"/>
+            <api:continue/>
+          </api:if>
+
+          
+          <api:if exp="[_value | contains('N;')]">
+            <api:else>
+              <api:set attr="CardInfoResponse.FirstName" value="[CardInfoResponse.FirstName | def()]"/>
+              <api:set attr="CardInfoResponse.LastName" value="[CardInfoResponse.LastName | def()]"/>
+              <api:set attr="CardInfoResponse.MiddleName" value="[CardInfoResponse.MiddleName | def()]"/>
+              <api:set attr="CardInfoResponse.TitleBefore" value="[CardInfoResponse.TitleBefore | def()]"/>
+              <api:set attr="CardInfoResponse.TitleAfter" value="[CardInfoResponse.TitleAfter | def()]"/>
+            </api:else>          
+            <api:set attr="CardInfoResponse.FirstName"   value="[_value | split(':',2) | split(';',1)]"/>
+            <api:set attr="CardInfoResponse.LastName"    value="[_value | split(':',2) | split(';',2)]"/>
+            <api:set attr="CardInfoResponse.MiddleName"  value="[_value | split(':',2) | split(';',3)]"/>
+            <api:set attr="CardInfoResponse.TitleBefore" value="[_value | split(':',2) | split(';',4)]"/>
+            <api:set attr="CardInfoResponse.TitleAfter"  value="[_value | split(':',2) | split(';',5)]"/>
+            <api:continue/>
+          </api:if>
+
+          <api:if exp="[_value | contains('TEL;WORK;FAX;')]">
+            <api:else>
+              <api:set attr="CardInfoResponse.TelFax" value="[CardInfoResponse.TelFax | def()]"/>
+            </api:else>          
+            <api:set attr="CardInfoResponse.TelFax" value="[_value | split(':',2)]"/>
+            <api:continue/>
+          </api:if>
+
+          <api:if exp="[_value | contains('TEL;WORK;')]">
+            <api:else>
+              <api:set attr="CardInfoResponse.TelWork" value="[CardInfoResponse.TelWork | def()]"/>
+            </api:else>          
+            <api:set attr="CardInfoResponse.TelWork" value="[_value | split(':',2)]"/>
+            <api:continue/>
+          </api:if>
+
+          <api:if exp="[_value | contains('TEL;CELL;')]">
+            <api:else>
+              <api:set attr="CardInfoResponse.TelCell" value="[CardInfoResponse.TelCell | def()]"/>
+            </api:else>          
+            <api:set attr="CardInfoResponse.TelCell" value="[_value | split(':',2)]"/>
+            <api:continue/>
+          </api:if>
+
+          <api:if exp="[_value | contains('BDAY;')]">
+            <api:else>
+              <api:set attr="CardInfoResponse.BirthDay" value="[CardInfoResponse.BirthDay | def()]"/>
+            </api:else>          
+            <api:set attr="CardInfoResponse.BirthDay" value="[_value | split(':',2)]"/>
+            <api:continue/>
+          </api:if>
+
+          <api:if exp="[_value | contains('EXCHANGEDATE')]">
+            <api:else>
+              <api:set attr="CardInfoResponse.ExchangeDate" value="[CardInfoResponse.ExchangeDate | def()]"/>
+            </api:else>          
+            <api:set attr="CardInfoResponse.ExchangeDate" value="[_value | split(':',2)]"/>
+            <api:continue/>
+          </api:if>
+
+
+          <api:if exp="[_value | contains('NICKNAME;')]">
+            <api:else>
+              <api:set attr="CardInfoResponse.NickName" value="[CardInfoResponse.NickName | def()]"/>
+            </api:else>          
+            <api:set attr="CardInfoResponse.NickName" value="[_value | split(':',2)]"/>
+            <api:continue/>
+          </api:if>
+
+
+          <api:if exp="[_value | contains('AUTHOR')]">
+            <api:else>
+              <api:set attr="CardInfoResponse.Author" value="[CardInfoResponse.Author | def()]"/>
+            </api:else>          
+            <api:set attr="CardInfoResponse.Author" value="[_value | split(':',2)]"/>
+            <api:continue/>
+          </api:if>
+
+          <api:if exp="[_value | contains('ADR;WORK;')]">
+            <api:else>
+              <api:set attr="CardInfoResponse.AddressLine1" value="[CardInfoResponse.AddressLine1 | def()]"/>
+              <api:set attr="CardInfoResponse.AddressLine2" value="[CardInfoResponse.AddressLine2 | def()]"/>
+              <api:set attr="CardInfoResponse.AddressLine3" value="[CardInfoResponse.AddressLine3 | def()]"/>
+              <api:set attr="CardInfoResponse.AddressCity" value="[CardInfoResponse.AddressCity | def()]"/>
+              <api:set attr="CardInfoResponse.AddressState" value="[CardInfoResponse.AddressState | def()]"/>
+              <api:set attr="CardInfoResponse.AddressZIP" value="[CardInfoResponse.AddressZIP | def()]"/>
+              <api:set attr="CardInfoResponse.AddressContry" value="[CardInfoResponse.AddressContry | def()]"/>
+            </api:else>          
+            <api:set attr="CardInfoResponse.AddressLine1"   value="[_value | split(':',2) | split(';',1)]"/>
+            <api:set attr="CardInfoResponse.AddressLine2"    value="[_value | split(':',2) | split(';',2)]"/>
+            <api:set attr="CardInfoResponse.AddressLine3"  value="[_value | split(':',2) | split(';',3)]"/>
+            <api:set attr="CardInfoResponse.AddressCity" value="[_value | split(':',2) | split(';',4)]"/>
+            <api:set attr="CardInfoResponse.AddressState"  value="[_value | split(':',2) | split(';',5)]"/>
+            <api:set attr="CardInfoResponse.AddressZIP"  value="[_value | split(':',2) | split(';',6)]"/>
+            <api:set attr="CardInfoResponse.AddressContry"  value="[_value | split(':',2) | split(';',7)]"/>
+            <api:continue/>
+          </api:if>
+
+          <api:if exp="[_value | contains('EMAIL;WORK;')]">
+            <api:else>
+              <api:set attr="CardInfoResponse.EmailWork" value="[CardInfoResponse.EmailWork | def()]"/>
+            </api:else>          
+            <api:set attr="CardInfoResponse.EmailWork" value="[_value | split(':',2)]"/>
+            <api:continue/>
+          </api:if>
+          
+          <api:if exp="[_value | contains('NOTE2;')]">
+            <api:else>
+              <api:set attr="CardInfoResponse.Note" value="[CardInfoResponse.Note | def()]"/>
+            </api:else>          
+            <api:set attr="CardInfoResponse.Note" value="[_value | split(':',2)]"/>
+            <api:continue/>
+          </api:if>
+          
+          <api:if exp="[_value | contains('X-IS-SNS;')]">
+            <api:else>
+              <api:set attr="CardInfoResponse.SNS" value="[CardInfoResponse.SNS | def()]"/>
+            </api:else>          
+            <api:set attr="CardInfoResponse.SNS" value="[_value | split(':',2)]"/>
+            <api:continue/>
+          </api:if>
+
+          <api:if exp="[_value | contains('ORG;')]">
+            <api:else>
+              <api:set attr="CardInfoResponse.ComapnyName" value="[CardInfoResponse.ComapnyName | def()]"/>
+              <api:set attr="CardInfoResponse.Department" value="[CardInfoResponse.Department | def()]"/>
+              <api:set attr="CardInfoResponse.Role" value="[CardInfoResponse.Role | def()]"/>
+            </api:else>          
+            <api:set attr="CardInfoResponse.ComapnyName"   value="[CardInfoResponse.ComapnyName | def([_value | split(':',2) | split(';',1)])]"/>
+            <api:set attr="CardInfoResponse.Department"   value="[CardInfoResponse.ComapnyName | def([_value | split(':',2) | split(';',2)])]"/>
+            <api:set attr="CardInfoResponse.Role"   value="[CardInfoResponse.ComapnyName | def([_value | split(':',2) | split(';',3)])]"/>
+            <api:continue/>
+          </api:if>
+
+        </api:enum>
+        
+        <api:push/>
+
+      </api:call>
+      
+      </api:enum>
+      
+    </api:call>
+  </api:script>
+
+</api:script>
